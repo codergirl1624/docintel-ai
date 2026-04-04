@@ -11,7 +11,7 @@ Handles:
 
 import re
 import logging
-from typing import Dict, Any, Tuple
+from typing import Dict, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,18 @@ def _get_nlp():
                 "Run: python -m spacy download en_core_web_sm"
             )
     return _nlp
+
+
+# -------------------------------------------------------------------
+# TEXT CLEANING
+# -------------------------------------------------------------------
+
+def clean_text(text: str) -> str:
+    """
+    Clean OCR text by removing excessive spaces/newlines.
+    """
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
 
 
 # -------------------------------------------------------------------
@@ -57,6 +69,8 @@ def _sentence_score(sentence: str) -> float:
 
 
 def generate_summary(text: str) -> str:
+    text = clean_text(text)
+
     try:
         nlp = _get_nlp()
         doc = nlp(text[:5000])
@@ -77,11 +91,8 @@ def generate_summary(text: str) -> str:
         )
 
         top = scored[:SUMMARY_SENTENCE_COUNT]
-        top_set = set(top)
 
-        ordered = [s for s in sentences if s in top_set]
-
-        return " ".join(ordered)
+        return " ".join(top)
 
     except Exception as exc:
         logger.warning("Summarization failed: %s", exc)
@@ -99,6 +110,8 @@ _AMOUNT_RE = re.compile(
 
 
 def extract_entities(text: str) -> Dict[str, list]:
+    text = clean_text(text)
+
     entities = {
         "names": set(),
         "dates": set(),
@@ -112,20 +125,25 @@ def extract_entities(text: str) -> Dict[str, list]:
         doc = nlp(text[:8000])
 
         for ent in doc.ents:
+            value = ent.text.strip()
+
+            if len(value) < 2:
+                continue
+
             if ent.label_ == "PERSON":
-                entities["names"].add(ent.text.strip())
+                entities["names"].add(value)
 
             elif ent.label_ == "ORG":
-                entities["organizations"].add(ent.text.strip())
+                entities["organizations"].add(value)
 
             elif ent.label_ in ["GPE", "LOC"]:
-                entities["locations"].add(ent.text.strip())
+                entities["locations"].add(value)
 
             elif ent.label_ in ["DATE", "TIME"]:
-                entities["dates"].add(ent.text.strip())
+                entities["dates"].add(value)
 
             elif ent.label_ == "MONEY":
-                entities["amounts"].add(ent.text.strip())
+                entities["amounts"].add(value)
 
         for match in _AMOUNT_RE.finditer(text):
             entities["amounts"].add(match.group().strip())
@@ -141,6 +159,8 @@ def extract_entities(text: str) -> Dict[str, list]:
 # -------------------------------------------------------------------
 
 def analyze_sentiment(text: str) -> str:
+    text = clean_text(text)
+
     try:
         from textblob import TextBlob
 
@@ -176,7 +196,7 @@ _DOC_TYPE_KEYWORDS = {
 
 
 def detect_document_type(text: str) -> str:
-    lower = text.lower()
+    lower = clean_text(text).lower()
 
     scores = {}
 
@@ -195,20 +215,24 @@ def detect_document_type(text: str) -> str:
 # -------------------------------------------------------------------
 
 def calculate_priority(text: str) -> Tuple[int, str]:
-    score = 20
-    lower = text.lower()
+    lower = clean_text(text).lower()
+
+    score = 10
 
     if "urgent" in lower:
         score += 30
 
     if "invoice" in lower or "payment" in lower:
-        score += 20
+        score += 25
 
     if "deadline" in lower or "due date" in lower:
         score += 20
 
     if "fraud" in lower or "legal" in lower:
-        score += 25
+        score += 30
+
+    if "complaint" in lower:
+        score += 20
 
     if score >= 70:
         level = "High"
