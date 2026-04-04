@@ -8,14 +8,19 @@ Run:
 """
 
 import logging
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from models import DocumentRequest, DocumentResponse, ErrorResponse
 from auth import get_api_key
 from extractor import extract_text
-from analyzer import generate_summary, extract_entities, analyze_sentiment, detect_document_type
+from analyzer import (
+    generate_summary,
+    extract_entities,
+    analyze_sentiment,
+    detect_document_type,
+)
 from scorer import calculate_dis, generate_insights
 
 # ---------------------------------------------------------------------------
@@ -23,12 +28,12 @@ from scorer import calculate_dis, generate_insights
 # ---------------------------------------------------------------------------
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s – %(message)s",
+    format="%(asctime)s [%(levelname)s] %(name)s - %(message)s",
 )
 logger = logging.getLogger("docintel")
 
 # ---------------------------------------------------------------------------
-# App
+# FastAPI App
 # ---------------------------------------------------------------------------
 app = FastAPI(
     title="DocIntel AI",
@@ -38,6 +43,9 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# ---------------------------------------------------------------------------
+# CORS Middleware
+# ---------------------------------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -46,17 +54,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---------------------------------------------------------------------------
+# Root Route (optional but useful)
+# ---------------------------------------------------------------------------
+@app.get("/", tags=["Root"])
+def root():
+    return {
+        "message": "DocIntel AI is running successfully",
+        "docs": "/docs",
+        "health": "/health",
+    }
 
 # ---------------------------------------------------------------------------
-# Health check
+# Health Check
 # ---------------------------------------------------------------------------
 @app.get("/health", tags=["Health"])
 def health_check():
-    return {"status": "ok", "service": "DocIntel AI"}
-
+    return {
+        "status": "ok",
+        "service": "DocIntel AI"
+    }
 
 # ---------------------------------------------------------------------------
-# Core endpoint
+# Analyze Document Endpoint
 # ---------------------------------------------------------------------------
 @app.post(
     "/analyze",
@@ -75,39 +95,60 @@ def analyze_document(
 ):
     logger.info("Received analysis request for: %s", request.fileName)
 
-    # --- 1. Extract text ---
-    text, extract_error = extract_text(request.fileType.value, request.fileBase64)
+    # Step 1: Extract text
+    text, extract_error = extract_text(
+        request.fileType.value,
+        request.fileBase64
+    )
+
     if extract_error:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Text extraction failed: {extract_error}",
         )
 
-    logger.info("Extracted %d characters from %s", len(text), request.fileName)
+    logger.info(
+        "Extracted %d characters from %s",
+        len(text),
+        request.fileName
+    )
 
-    # --- 2. Detect document type ---
+    # Step 2: Detect document type
     doc_type = detect_document_type(text)
 
-    # --- 3. Generate summary ---
+    # Step 3: Generate summary
     summary = generate_summary(text)
 
-    # --- 4. Extract named entities ---
+    # Step 4: Extract entities
     entities = extract_entities(text)
 
-    # --- 5. Sentiment analysis ---
+    # Step 5: Sentiment
     sentiment = analyze_sentiment(text)
 
-    # --- 6. Calculate DIS ---
-    priority_score, priority_level = calculate_dis(text, entities, sentiment, doc_type)
+    # Step 6: Priority score
+    priority_score, priority_level = calculate_dis(
+        text,
+        entities,
+        sentiment,
+        doc_type
+    )
 
-    # --- 7. Generate insights ---
+    # Step 7: Generate insights
     insights = generate_insights(
-        text, entities, sentiment, doc_type, priority_score, priority_level
+        text,
+        entities,
+        sentiment,
+        doc_type,
+        priority_score,
+        priority_level
     )
 
     logger.info(
-        "Analysis complete for %s | Score=%d | Level=%s | Sentiment=%s",
-        request.fileName, priority_score, priority_level, sentiment,
+        "Analysis complete | File=%s | Score=%d | Level=%s | Sentiment=%s",
+        request.fileName,
+        priority_score,
+        priority_level,
+        sentiment,
     )
 
     return DocumentResponse(
@@ -121,14 +162,26 @@ def analyze_document(
         insights=insights,
     )
 
-
 # ---------------------------------------------------------------------------
-# Global exception handler
+# Global Exception Handler
 # ---------------------------------------------------------------------------
 @app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
+async def global_exception_handler(request: Request, exc: Exception):
     logger.error("Unhandled exception: %s", exc, exc_info=True)
+
+    if isinstance(exc, HTTPException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content={
+                "status": "error",
+                "message": exc.detail
+            },
+        )
+
     return JSONResponse(
         status_code=500,
-        content={"status": "error", "message": "Internal server error."},
+        content={
+            "status": "error",
+            "message": "Internal server error."
+        },
     )
