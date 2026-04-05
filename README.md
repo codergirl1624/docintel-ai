@@ -1,95 +1,242 @@
-# DocIntel AI — Data Extraction API
+# DocIntel AI — Intelligent Document Analysis & Extraction API
 
 ## Description
-DocIntel AI is a Python FastAPI application that extracts information from PDFs, Word documents, and images. 
-It generates summaries, extracts entities, analyzes sentiment, and calculates document priority. 
-The API is fully automated and returns structured JSON for easy consumption.
+DocIntel AI is a Python FastAPI-based intelligent document analysis system that processes **PDF, DOCX, and image files**.
 
-## Tech Stack
-- **Language / Framework:** Python 3.11, FastAPI
-- **Libraries:**
-  - PyPDF2 — PDF parsing
-  - python-docx — Word documents
-  - pytesseract + Pillow — Image OCR
-  - spaCy — Named Entity Recognition (NER)
-  - TextBlob — Sentiment analysis
-  - python-dotenv — Environment variable management
-- **LLM/AI models used:** spaCy `en_core_web_sm` for NER
+The system performs:
+- **Text extraction**
+- **Document summarization**
+- **Named Entity Recognition (NER)**
+- **Sentiment analysis**
+- **Document priority scoring**
+- **Insight generation**
 
-## Setup Instructions
-1. Clone the repository:
-   ```bash
-   git clone https://github.com/YourUsername/DocIntelAI.git
-   cd DocIntelAI
-2. Install dependencies:
-   pip install -r requirements.txt
-
-3. Set environment variables:
-cp .env.example .env
-# Open .env and set your DOCINTEL_API_KEY
-4. Run the application:
-uvicorn src.main:app --host 0.0.0.0 --port 8000
-5. Test the health endpoint:
-curl http://localhost:8000/health
-6. Test document analysis 
-curl -X POST http://localhost:8000/analyze \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: YOUR_API_KEY" \
-  -d '{"fileName": "sample.pdf", "fileType": "pdf", "fileBase64": "..."}'
+The API returns structured JSON output for easy integration with web, mobile, or enterprise systems.
 
 ---
 
-**Explanation:**  
-- Steps are numbered for clarity.  
-- Shows **clone → install → configure → run → test**, exactly what a reviewer needs.  
-- Includes the **curl command** to test your `/analyze` endpoint, which proves your API works.
+## Features
+- Secure API key authentication
+- PDF text extraction using PyPDF2
+- DOCX extraction using python-docx
+- OCR support for images using Tesseract OCR
+- AI-powered entity extraction using spaCy
+- Sentiment analysis using TextBlob
+- Intelligent document type detection
+- Priority scoring (Low / Medium / High)
+- Business insights generation
+- Swagger UI documentation
+- Live public endpoint via ngrok
 
-Show project structure
+---
+
+## Tech Stack
+- **Language:** Python 3.11
+- **Framework:** FastAPI
+- **Server:** Uvicorn
+
+### Libraries Used
+- PyPDF2
+- python-docx
+- pytesseract
+- Pillow
+- spaCy
+- TextBlob
+- python-dotenv
+
+### AI / NLP Models Used
+- spaCy `en_core_web_sm`
+- TextBlob sentiment engine
+
 ## Project Structure
 
-your-repo/
-├── README.md
+```text
+docintel/
+├── main.py
+├── auth.py
+├── extractor.py
+├── analyzer.py
+├── scorer.py
+├── models.py
 ├── requirements.txt
 ├── .env.example
-├── src/
-│ ├── main.py
-│ ├── models.py
-│ ├── auth.py
-│ ├── extractor.py
-│ ├── analyzer.py
-│ └── scorer.py
- review.
+└── README.md
+```
 
-an example API response
-## Example API Response
+## Setup Instructions
+
+### 1. Clone repository
+```bash
+git clone https://github.com/codergirl1624/docintel-ai.git
+cd docintel-ai
+```
+
+### 2. Install dependencies
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Install spaCy model
+```bash
+python -m spacy download en_core_web_sm
+```
+
+### 4. Install TextBlob corpora
+```bash
+python -m textblob.download_corpora
+```
+
+### 5. Create environment file
+```bash
+cp .env.example .env
+```
+
+Add your API key inside `.env`:
+
+```env
+DOCINTEL_API_KEY=your_secret_api_key
+```
+
+### 6. Run the application
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+### 7. Open Swagger documentation
+After starting the server, open:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+## API Endpoints
+
+### Health Check
+```http
+GET /health
+```
+
+### Document Analysis
+```http
+POST /analyze
+```
+
+### Required Header
+```http
+x-api-key: YOUR_API_KEY
+```
+
+### Example Request
+```json
+{
+  "fileName": "sample.pdf",
+  "fileType": "pdf",
+  "fileBase64": "JVBERi0x..."
+}
+```
+
+### Example Response
 ```json
 {
   "status": "success",
-  "fileName": "sample1.pdf",
-  "summary": "Company Press Release: TechNova Launches Sustainable Data Centers...",
+  "fileName": "sample.pdf",
+  "summary": "This is a payment invoice...",
   "entities": {
-    "names": ["Daniel Brooks", "Schneider Electric"],
-    "dates": ["the next three years", "today"],
-    "organizations": ["Gartner", "IBM", "Siemens", "TechNova"],
-    "amounts": [],
-    "locations": ["Asia", "Bangalore", "Berlin"]
+    "names": ["Ravi Kumar"],
+    "dates": ["March 2026"],
+    "organizations": ["ABC Pvt Ltd"],
+    "amounts": ["₹10000"],
+    "locations": []
   },
-  "sentiment": "Positive",
-  "priority_score": 25,
-  "priority_level": "Medium",
+  "sentiment": "Neutral",
+  "priority_score": 65,
+  "priority_level": "High",
   "insights": {
-    "document_type": "press_release",
-    "risk_level": "medium",
-    "review_required": false,
-    "financial_impact": "none"
+    "document_type": "invoice",
+    "risk_level": "high",
+    "review_required": true,
+    "financial_impact": "medium"
   }
 }
+```
+
+## Architecture Overview
+
+The project is modular and follows clean architecture principles.
+
+main.py → API routes and request flow
+auth.py → API key authentication
+extractor.py → file text extraction
+analyzer.py → NLP and intelligence layer
+scorer.py → priority score + business insights
+models.py → request / response schemas
+
+## Security Implemented
+
+API key authentication
+Environment variable secret management
+Constant-time key comparison using secrets.compare_digest()
+CORS middleware support
+Input validation using Pydantic schemas
+
+## Live Deployment
+Public API URL (submitted for evaluation):
+
+https://nonvascularly-untelic-hadlee.ngrok-free.dev/analyze
 
 
-Add notes for reviewers
-## Notes on Code Quality & Submission
-- **Clean code structure**: All modules separated by functionality.
-- **API Functionality**: `/health` and `/analyze` endpoints validated with multiple file types.
-- **No hardcoded responses**: Works for arbitrary PDFs, DOCX, and images.
-- **Technical Implementation**: Uses FastAPI, uvicorn, spaCy, TextBlob; modular and scalable.
-- **User Experience**: Returns structured JSON ready for client consumption.
+## GitHub Repository
+Repository Link:
+
+https://github.com/codergirl1624/docintel-ai
+
+---
+
+## AI Tools Used
+This project was developed with assistance from the following AI tools:
+
+- ChatGPT (architecture guidance, debugging support, README documentation)
+- GitHub Copilot / AI-assisted code suggestions (if used)
+- spaCy NLP model (`en_core_web_sm`)
+- TextBlob sentiment engine
+
+All AI assistance has been disclosed as per hackathon submission guidelines.
+
+---
+
+## Challenges Faced
+During development, the following technical challenges were addressed:
+
+- API key authentication issue
+- Environment variable loading issue
+- Base64 decoding errors
+- PDF text extraction edge cases
+- OCR configuration using Tesseract
+- Entity extraction improvement for organizations and locations
+- Live public deployment under time constraints
+- Maintaining stable endpoint availability using ngrok
+
+---
+
+## Known Limitations
+- ngrok deployment is temporary and depends on local machine uptime
+- OCR accuracy may vary for low-quality images
+- Complex scanned PDFs may require advanced OCR tuning
+- Current solution is API-first and does not include a dedicated frontend UI
+
+---
+
+## Submission Notes
+This project was built for the **AI-Powered Document Analysis & Extraction** problem statement.
+
+The submission includes:
+
+- Live deployed endpoint
+- Public GitHub repository
+- API key authentication
+- Full documentation
+- Modular clean architecture
+- AI-powered NLP workflow
+- Production-ready API structure
+
+This project was successfully validated using the official endpoint tester with status code 200.
